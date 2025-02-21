@@ -1,46 +1,49 @@
 import os
-import asyncio
-from fastapi import FastAPI
-import uvicorn
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext
 
-# Retrieve the bot token from environment variables
+# Get bot token from environment variable
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("Bot token is missing. Set BOT_TOKEN in environment variables.")
 
-# Create a FastAPI instance for a simple health-check endpoint
-app = FastAPI()
-
-@app.get("/")
-def read_root():
-    return {"message": "Bot is running"}
-
-# Define an asynchronous command handler for /start
+# /start command: Just a welcome message.
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text("Hello! I'm running on Koyeb.")
+    await update.message.reply_text(
+        "Hello! I'm your spam bot. Use /spam <count> <message> to spam a message."
+    )
 
-async def main():
-    # Build the Telegram Application
+# /spam command: Expects at least 2 arguments. First is count, rest is message.
+async def spam(update: Update, context: CallbackContext):
+    if len(context.args) < 2:
+        await update.message.reply_text("Usage: /spam <count> <message>")
+        return
+
+    try:
+        count = int(context.args[0])
+    except ValueError:
+        await update.message.reply_text("The first argument must be an integer for count.")
+        return
+
+    # Optionally, limit the count to prevent abuse (here maximum 50)
+    if count > 50:
+        count = 50
+
+    message_text = " ".join(context.args[1:])
+
+    # Send the message count times
+    for i in range(count):
+        await update.message.reply_text(message_text)
+
+def main():
     application = Application.builder().token(BOT_TOKEN).build()
+    
+    # Add command handlers
     application.add_handler(CommandHandler("start", start))
+    application.add_handler(CommandHandler("spam", spam))
     
-    # Initialize and start the bot without blocking the event loop
-    await application.initialize()
-    await application.start()
-    
-    # Start polling in an asyncio Task (non-blocking)
-    polling_task = asyncio.create_task(application.updater.start_polling())
-    
-    # Configure and start the FastAPI server with uvicorn asynchronously
-    port = int(os.environ.get("PORT", 8000))
-    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", loop="asyncio")
-    server = uvicorn.Server(config)
-    uvicorn_task = asyncio.create_task(server.serve())
-    
-    # Run both tasks concurrently. They should run forever.
-    await asyncio.gather(polling_task, uvicorn_task)
+    # Start the bot using polling
+    application.run_polling()
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()
