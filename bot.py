@@ -31,8 +31,8 @@ def run_bot():
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     print("Bot is starting with PTB v20 ...")
-    # Disable signal handlers by setting allowed_signals to an empty tuple.
-    application.run_polling(allowed_signals=())
+    # Disable signal handling by setting handle_signals to False.
+    application.run_polling(handle_signals=False)
 
 if __name__ == "__main__":
     # Run the bot in a separate thread so that uvicorn can serve HTTP requests concurrently
