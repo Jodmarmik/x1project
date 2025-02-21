@@ -1,5 +1,6 @@
 import os
 import threading
+import asyncio
 from fastapi import FastAPI
 import uvicorn
 from telegram import Update
@@ -23,6 +24,10 @@ async def start(update: Update, context: CallbackContext):
 
 # Function to run the Telegram bot (polling mode)
 def run_bot():
+    # Create and set a new event loop for this thread.
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     print("Bot is starting with PTB v20 ...")
@@ -35,5 +40,5 @@ if __name__ == "__main__":
     
     # Get the port from environment variables, defaulting to 8000
     port = int(os.environ.get("PORT", 8000))
-    # Pass the application as an import string ("bot:app") to disable reload/workers warnings
+    # Pass the application as an import string ("bot:app") to satisfy uvicorn
     uvicorn.run("bot:app", host="0.0.0.0", port=port, reload=False)
