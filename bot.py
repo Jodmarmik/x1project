@@ -1,5 +1,4 @@
 import os
-import threading
 import asyncio
 from fastapi import FastAPI
 import uvicorn
@@ -22,24 +21,26 @@ def read_root():
 async def start(update: Update, context: CallbackContext):
     await update.message.reply_text("Hello! I'm running on Koyeb.")
 
-# Function to run the Telegram bot (polling mode)
-def run_bot():
-    # Create and set a new event loop for this thread.
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-
+async def main():
+    # Build the Telegram Application
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
-    print("Bot is starting with PTB v20 ...")
-    # Disable signal handling by setting handle_signals to False.
-    application.run_polling(handle_signals=False)
+    
+    # Initialize and start the bot without blocking the event loop
+    await application.initialize()
+    await application.start()
+    
+    # Start polling in an asyncio Task (non-blocking)
+    polling_task = asyncio.create_task(application.updater.start_polling())
+    
+    # Configure and start the FastAPI server with uvicorn asynchronously
+    port = int(os.environ.get("PORT", 8000))
+    config = uvicorn.Config(app, host="0.0.0.0", port=port, log_level="info", loop="asyncio")
+    server = uvicorn.Server(config)
+    uvicorn_task = asyncio.create_task(server.serve())
+    
+    # Run both tasks concurrently. They should run forever.
+    await asyncio.gather(polling_task, uvicorn_task)
 
 if __name__ == "__main__":
-    # Run the bot in a separate thread so that uvicorn can serve HTTP requests concurrently
-    bot_thread = threading.Thread(target=run_bot, daemon=True)
-    bot_thread.start()
-    
-    # Get the port from environment variables, defaulting to 8000
-    port = int(os.environ.get("PORT", 8000))
-    # Pass the FastAPI application as an import string to uvicorn
-    uvicorn.run("bot:app", host="0.0.0.0", port=port, reload=False)
+    asyncio.run(main())
