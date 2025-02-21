@@ -1,19 +1,26 @@
 import os
+import asyncio
+import logging
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext
 
-# Get bot token from environment variable
+# Configure logging to help with debugging.
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s", 
+    level=logging.INFO
+)
+logger = logging.getLogger(__name__)
+
+# Get the bot token from the environment variable.
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
     raise ValueError("Bot token is missing. Set BOT_TOKEN in environment variables.")
 
-# /start command: Just a welcome message.
+# /start command: Sends a welcome message.
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text(
-        "Hello! I'm your spam bot. Use /spam <count> <message> to spam a message."
-    )
+    await update.message.reply_text("Hello! I'm your spam bot. Use /spam <count> <message>.")
 
-# /spam command: Expects at least 2 arguments. First is count, rest is message.
+# /spam command: Spams the specified message a given number of times.
 async def spam(update: Update, context: CallbackContext):
     if len(context.args) < 2:
         await update.message.reply_text("Usage: /spam <count> <message>")
@@ -22,27 +29,29 @@ async def spam(update: Update, context: CallbackContext):
     try:
         count = int(context.args[0])
     except ValueError:
-        await update.message.reply_text("The first argument must be an integer for count.")
+        await update.message.reply_text("The count must be an integer.")
         return
 
-    # Optionally, limit the count to prevent abuse (here maximum 50)
+    # Optionally, limit the count to prevent abuse.
     if count > 50:
         count = 50
 
     message_text = " ".join(context.args[1:])
+    logger.info("Spamming message '%s' %d times", message_text, count)
 
-    # Send the message count times
     for i in range(count):
         await update.message.reply_text(message_text)
+        # Add a slight delay between messages to avoid rate limits.
+        await asyncio.sleep(0.5)
 
 def main():
     application = Application.builder().token(BOT_TOKEN).build()
-    
-    # Add command handlers
+
+    # Register command handlers.
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("spam", spam))
-    
-    # Start the bot using polling
+
+    # Start the bot using polling.
     application.run_polling()
 
 if __name__ == "__main__":
