@@ -33,6 +33,7 @@ if __name__ == "__main__":
     bot_thread = threading.Thread(target=run_bot, daemon=True)
     bot_thread.start()
     
-    # Get the port from environment variable, defaulting to 8000
+    # Get the port from environment variables, defaulting to 8000
     port = int(os.environ.get("PORT", 8000))
-    uvicorn.run(app, host="0.0.0.0", port=port)
+    # Pass the application as an import string ("bot:app") to disable reload/workers warnings
+    uvicorn.run("bot:app", host="0.0.0.0", port=port, reload=False)
