@@ -24,26 +24,28 @@ def read_root():
 
 # /start command: Sends a welcome message.
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text(
-        "Hello! I'm your spam bot. Use /spam <count> <message> to spam a message."
-    )
+    await update.message.reply_text("Hello! I'm your spam bot. Use /spam <count> <message> to spam a message.")
 
-# (Optional) /spam command
+# /spam command: Sends the specified message count times.
 async def spam(update: Update, context: CallbackContext):
     if len(context.args) < 2:
         await update.message.reply_text("Usage: /spam <count> <message>")
         return
+
     try:
         count = int(context.args[0])
     except ValueError:
         await update.message.reply_text("The first argument must be an integer for count.")
         return
-    if count > 50:
+
+    if count > 50:  # Limit to 50 times to prevent abuse
         count = 50
+
     message_text = " ".join(context.args[1:])
+    logger.info("Spamming '%s' %d times", message_text, count)
     for _ in range(count):
         await update.message.reply_text(message_text)
-        # Optional delay to avoid rate limits
+        # Optional: add a delay to avoid rate limits
         await asyncio.sleep(0.5)
 
 async def main():
@@ -51,16 +53,16 @@ async def main():
     application = Application.builder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CommandHandler("spam", spam))
-    
+
     # Initialize and start the bot
     await application.initialize()
     await application.start()
     logger.info("Bot is starting with PTB v20 ...")
     
-    # Delete any existing webhook to avoid conflicts with polling.
+    # Delete any existing webhook to avoid conflict with polling.
     await application.bot.delete_webhook(drop_pending_updates=True)
     
-    # Start polling in an asyncio Task (non-blocking)
+    # Start polling for updates in an asyncio Task
     polling_task = asyncio.create_task(application.updater.start_polling())
     
     # Configure and start the FastAPI server with uvicorn asynchronously
@@ -69,7 +71,7 @@ async def main():
     server = uvicorn.Server(config)
     uvicorn_task = asyncio.create_task(server.serve())
     
-    # Run both tasks concurrently
+    # Run both tasks concurrently.
     await asyncio.gather(polling_task, uvicorn_task)
 
 if __name__ == "__main__":
