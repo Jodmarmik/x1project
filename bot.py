@@ -1,28 +1,38 @@
 import os
+import threading
+from fastapi import FastAPI
+import uvicorn
 from telegram import Update
 from telegram.ext import Application, CommandHandler, CallbackContext
 
-# 1. Retrieve the bot token from environment variables
+# Retrieve the bot token from environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-
 if not BOT_TOKEN:
     raise ValueError("Bot token is missing. Set BOT_TOKEN in environment variables.")
 
-# 2. Define a simple start command handler
+# Create a FastAPI instance for a simple health-check endpoint
+app = FastAPI()
+
+@app.get("/")
+def read_root():
+    return {"message": "Bot is running"}
+
+# Define an asynchronous command handler for /start
 async def start(update: Update, context: CallbackContext):
-    await update.message.reply_text("Hello! I'm running on the new PTB v20.")
+    await update.message.reply_text("Hello! I'm running on Koyeb.")
 
-def main():
-    # 3. Create the Application (replaces Updater)
-    app = Application.builder().token(BOT_TOKEN).build()
-
-    # 4. Add a command handler
-    app.add_handler(CommandHandler("start", start))
-
-    # 5. Run the bot in polling mode
+# Function to run the Telegram bot (polling mode)
+def run_bot():
+    application = Application.builder().token(BOT_TOKEN).build()
+    application.add_handler(CommandHandler("start", start))
     print("Bot is starting with PTB v20 ...")
-    app.run_polling()
+    application.run_polling()
 
-# 6. Entry point
 if __name__ == "__main__":
-    main()
+    # Run the bot in a separate thread so that uvicorn can serve HTTP requests concurrently
+    bot_thread = threading.Thread(target=run_bot, daemon=True)
+    bot_thread.start()
+    
+    # Get the port from environment variable, defaulting to 8000
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
